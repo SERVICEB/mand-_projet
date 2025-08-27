@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestion Importations</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #f5f6fa; color: #2c3e50; }
+    header { background: #2c3e50; color: white; text-align: center; padding: 1rem; }
+    nav { display: flex; justify-content: center; background: #34495e; flex-wrap: wrap; }
+    nav button { flex: 1; padding: 1rem; border: none; background: transparent; color: white; cursor: pointer; font-size: 1rem; transition: background 0.3s; }
+    nav button.active { background: #1abc9c; }
+    main { padding: 1.5rem; max-width: 1200px; margin: auto; }
+    .section { display: none; }
+    .section.active { display: block; animation: fadeIn 0.5s; }
+    h2 { margin-bottom: 1rem; }
+    form { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-weight: bold; margin-bottom: .3rem; }
+    input { width: 100%; padding: .6rem; border: 1px solid #ccc; border-radius: 6px; }
+    .btn { padding: .7rem 1.2rem; border: none; border-radius: 6px; background: #1abc9c; color: white; cursor: pointer; font-size: 1rem; margin-top: 0.5rem; }
+    .btn:hover { background: #16a085; }
+    .btn-secondary { background: #3498db; }
+    .btn-secondary:hover { background: #2980b9; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    th, td { padding: .8rem; border: 1px solid #ddd; text-align: left; }
+    th { background: #1abc9c; color: white; }
+    .action-btn { padding: .4rem .8rem; border: none; border-radius: 4px; cursor: pointer; color: white; margin-right: 5px; }
+    .delete-btn { background: #e74c3c; }
+    .delete-btn:hover { background: #c0392b; }
+    .edit-btn { background: #3498db; }
+    .edit-btn:hover { background: #2980b9; }
+    .budget-info { background: #ecf0f1; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; border-left: 4px solid #1abc9c; }
+    .budget-warning { border-left-color: #e74c3c; background: #fdf2f2; }
+    .mission-section { background: white; margin-bottom: 2rem; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 2px solid #ecf0f1; }
+    .mission-title { margin: 0; color: #2c3e50; }
+    .mission-stats { font-size: 0.9rem; color: #7f8c8d; }
+    @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
+    @media (max-width: 768px) { nav button { flex: 100%; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Gestion des Importations: MANDE DISTRIBUTION </h1>
+  </header>
+
+  <nav>
+    <button class="active" data-id="nouvelle" onclick="showSection('nouvelle')">Nouvelle commande</button>
+    <button data-id="ancienne" onclick="showSection('ancienne')">Anciennes commandes</button>
+  </nav>
+
+  <main>
+    <!-- Nouvelle commande -->
+    <section id="nouvelle" class="section active">
+      <h2>Nouvelle commande</h2>
+      
+      <!-- Informations Budget -->
+      <div id="budgetDisplay" class="budget-info" style="display: none;">
+        <h3>Budget Mission Actuelle</h3>
+        <p><strong>Budget:</strong> <span id="budgetCourant">0</span> | <strong>Dépensé:</strong> <span id="totalDepense">0</span> | <strong>Reste:</strong> <span id="budgetRestant">0</span></p>
+      </div>
+
+      <form id="commandeForm">
+        <div class="form-group">
+          <label>Nom de la Mission</label>
+          <input type="text" id="nomMission" required placeholder="Ex: Mission Import Riz Janvier">
+        </div>
+        <div class="form-group">
+          <label>Budget Mission</label>
+          <input type="number" id="budgetMission" required placeholder="Budget total alloué à cette mission">
+        </div>
+        <div class="form-group">
+          <label>Montant Commande</label>
+          <input type="number" id="montant" required>
+        </div>
+        <div class="form-group">
+          <label>Camion</label>
+          <input type="text" id="camion" required>
+        </div>
+        <div class="form-group">
+          <label>Sacs</label>
+          <input type="number" id="sacs" required>
+        </div>
+        <div class="form-group">
+          <label>Prix Sac</label>
+          <input type="number" id="prixSac" required>
+        </div>
+        <div class="form-group">
+          <label>Paie Déchargeur</label>
+          <input type="number" id="dechargeur" required>
+        </div>
+        <div class="form-group">
+          <label>Barrage Police</label>
+          <input type="number" id="barrage" required>
+        </div>
+        <button type="submit" class="btn">Valider la commande</button>
+        <button type="button" class="btn btn-secondary" onclick="terminerMission()" id="btnTerminer" style="display: none;">Terminer la mission</button>
+      </form>
+    </section>
+
+    <!-- Anciennes commandes -->
+    <section id="ancienne" class="section">
+      <h2>Anciennes commandes</h2>
+      <div id="missionsContainer"></div>
+    </section>
+  </main>
+
+  <script>
+    // Variables globales
+    let missions = JSON.parse(localStorage.getItem("missions")) || [];
+    let missionCourante = JSON.parse(localStorage.getItem("missionCourante")) || null;
+
+    // Navigation
+    function showSection(id) {
+      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+
+      document.querySelector(`nav button[data-id="${id}"]`).classList.add('active');
+      document.getElementById(id).classList.add('active');
+
+      if(id === "ancienne") afficherMissions();
+      if(id === "nouvelle") majAffichageBudget();
+    }
+
+    // Mise à jour affichage budget
+    function majAffichageBudget() {
+      const budgetDisplay = document.getElementById("budgetDisplay");
+      const btnTerminer = document.getElementById("btnTerminer");
+      
+      if (missionCourante) {
+        const totalDepense = missionCourante.commandes.reduce((sum, cmd) => sum + cmd.total, 0);
+        const reste = missionCourante.budget - totalDepense;
+        
+        document.getElementById("budgetCourant").textContent = missionCourante.budget.toFixed(2);
+        document.getElementById("totalDepense").textContent = totalDepense.toFixed(2);
+        document.getElementById("budgetRestant").textContent = reste.toFixed(2);
+        
+        // Changer la couleur si budget dépassé
+        if (reste < 0) {
+          budgetDisplay.classList.add("budget-warning");
+        } else {
+          budgetDisplay.classList.remove("budget-warning");
+        }
+        
+        budgetDisplay.style.display = "block";
+        btnTerminer.style.display = "inline-block";
+        
+        // Pré-remplir les champs de la mission courante
+        document.getElementById("nomMission").value = missionCourante.nom;
+        document.getElementById("budgetMission").value = missionCourante.budget;
+        document.getElementById("nomMission").readOnly = true;
+        document.getElementById("budgetMission").readOnly = true;
+      } else {
+        budgetDisplay.style.display = "none";
+        btnTerminer.style.display = "none";
+        document.getElementById("nomMission").readOnly = false;
+        document.getElementById("budgetMission").readOnly = false;
+      }
+    }
+
+    // Ajouter commande
+    document.getElementById("commandeForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      
+      const nomMission = document.getElementById("nomMission").value;
+      const budgetMission = parseFloat(document.getElementById("budgetMission").value);
+      const montant = parseFloat(document.getElementById("montant").value);
+      const camion = document.getElementById("camion").value;
+      const sacs = parseInt(document.getElementById("sacs").value);
+      const prixSac = parseFloat(document.getElementById("prixSac").value);
+      const dechargeur = parseFloat(document.getElementById("dechargeur").value);
+      const barrage = parseFloat(document.getElementById("barrage").value);
+
+      const total = montant + (sacs * prixSac) + dechargeur + barrage;
+      const commande = {
+        id: "CMD" + Date.now(),
+        date: new Date().toLocaleString(),
+        montant, camion, sacs, prixSac, dechargeur, barrage, total
+      };
+
+      // Si pas de mission courante, en créer une nouvelle
+      if (!missionCourante) {
+        missionCourante = {
+          id: "MSN" + Date.now(),
+          nom: nomMission,
+          budget: budgetMission,
+          dateCreation: new Date().toLocaleString(),
+          commandes: [],
+          terminee: false
+        };
+      }
+
+      missionCourante.commandes.push(commande);
+      localStorage.setItem("missionCourante", JSON.stringify(missionCourante));
+
+      // Réinitialiser seulement les champs de commande
+      document.getElementById("montant").value = "";
+      document.getElementById("camion").value = "";
+      document.getElementById("sacs").value = "";
+      document.getElementById("prixSac").value = "";
+      document.getElementById("dechargeur").value = "";
+      document.getElementById("barrage").value = "";
+      
+      majAffichageBudget();
+      alert("Commande ajoutée avec succès!");
+    });
+
+    // Terminer mission
+    function terminerMission() {
+      if (!missionCourante) return;
+      
+      if (confirm("Terminer cette mission? Elle sera archivée et vous ne pourrez plus y ajouter de commandes.")) {
+        missionCourante.terminee = true;
+        missionCourante.dateTerminaison = new Date().toLocaleString();
+        
+        missions.push(missionCourante);
+        localStorage.setItem("missions", JSON.stringify(missions));
+        localStorage.removeItem("missionCourante");
+        
+        missionCourante = null;
+        document.getElementById("commandeForm").reset();
+        majAffichageBudget();
+        
+        alert("Mission terminée et archivée!");
+      }
+    }
+
+    // Afficher missions
+    function afficherMissions() {
+      const container = document.getElementById("missionsContainer");
+      container.innerHTML = "";
+
+      // Afficher mission courante si elle existe
+      if (missionCourante && missionCourante.commandes.length > 0) {
+        const missionDiv = creerAffichageMission(missionCourante, true);
+        container.appendChild(missionDiv);
+      }
+
+      // Afficher missions terminées
+      missions.forEach((mission, index) => {
+        const missionDiv = creerAffichageMission(mission, false, index);
+        container.appendChild(missionDiv);
+      });
+
+      if (missions.length === 0 && (!missionCourante || missionCourante.commandes.length === 0)) {
+        container.innerHTML = "<p>Aucune mission trouvée.</p>";
+      }
+    }
+
+    // Créer l'affichage d'une mission
+    function creerAffichageMission(mission, estCourante = false, index = null) {
+      const totalDepense = mission.commandes.reduce((sum, cmd) => sum + cmd.total, 0);
+      const reste = mission.budget - totalDepense;
+      
+      const missionDiv = document.createElement("div");
+      missionDiv.className = "mission-section";
+      
+      missionDiv.innerHTML = `
+        <div class="mission-header">
+          <h3 class="mission-title">${mission.nom} ${estCourante ? '(En cours)' : ''}</h3>
+          <div class="mission-stats">
+            <span>Budget: ${mission.budget.toFixed(2)} | Dépensé: ${totalDepense.toFixed(2)} | Reste: ${reste.toFixed(2)}</span>
+          </div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <button class="btn" onclick="exporterMissionPDF('${mission.id}', ${estCourante})">
+            Exporter la mission en PDF
+          </button>
+          ${!estCourante ? `<button class="action-btn delete-btn" onclick="supprimerMission(${index})">Supprimer Mission</button>` : ''}
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Date</th><th>Montant</th><th>Camion</th><th>Sacs</th>
+              <th>Prix Sac</th><th>Déchargeur</th><th>Barrage Police</th><th>Total</th>
+              ${estCourante ? '<th>Actions</th>' : ''}
+            </tr>
+          </thead>
+          <tbody>
+            ${mission.commandes.map((cmd, cmdIndex) => `
+              <tr>
+                <td>${cmd.id}</td><td>${cmd.date}</td><td>${cmd.montant}</td><td>${cmd.camion}</td>
+                <td>${cmd.sacs}</td><td>${cmd.prixSac}</td><td>${cmd.dechargeur}</td><td>${cmd.barrage}</td>
+                <td>${cmd.total}</td>
+                ${estCourante ? `
+                  <td>
+                    <button class="action-btn edit-btn" onclick="modifierCommande(${cmdIndex})">Modifier</button>
+                    <button class="action-btn delete-btn" onclick="supprimerCommande(${cmdIndex})">Supprimer</button>
+                  </td>
+                ` : ''}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      
+      return missionDiv;
+    }
+
+    // Supprimer commande (seulement pour mission courante)
+    function supprimerCommande(index) {
+      if (!missionCourante) return;
+      
+      if (confirm("Supprimer cette commande ?")) {
+        missionCourante.commandes.splice(index, 1);
+        localStorage.setItem("missionCourante", JSON.stringify(missionCourante));
+        afficherMissions();
+        majAffichageBudget();
+      }
+    }
+
+    // Modifier commande (seulement pour mission courante)
+    function modifierCommande(index) {
+      if (!missionCourante) return;
+      
+      const cmd = missionCourante.commandes[index];
+      document.getElementById("montant").value = cmd.montant;
+      document.getElementById("camion").value = cmd.camion;
+      document.getElementById("sacs").value = cmd.sacs;
+      document.getElementById("prixSac").value = cmd.prixSac;
+      document.getElementById("dechargeur").value = cmd.dechargeur;
+      document.getElementById("barrage").value = cmd.barrage;
+
+      missionCourante.commandes.splice(index, 1);
+      localStorage.setItem("missionCourante", JSON.stringify(missionCourante));
+      showSection("nouvelle");
+      majAffichageBudget();
+    }
+
+    // Supprimer mission terminée
+    function supprimerMission(index) {
+      if (confirm("Supprimer définitivement cette mission ?")) {
+        missions.splice(index, 1);
+        localStorage.setItem("missions", JSON.stringify(missions));
+        afficherMissions();
+      }
+    }
+
+    // Export PDF Mission
+    function exporterMissionPDF(missionId, estCourante = false) {
+      let mission;
+      if (estCourante) {
+        mission = missionCourante;
+      } else {
+        mission = missions.find(m => m.id === missionId);
+      }
+      
+      if (!mission) return;
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      const totalDepense = mission.commandes.reduce((sum, cmd) => sum + cmd.total, 0);
+      const reste = mission.budget - totalDepense;
+
+      doc.setFontSize(16);
+      doc.text(`Rapport Mission: ${mission.nom}`, 14, 15);
+      
+      doc.setFontSize(12);
+      doc.text(`Date création: ${mission.dateCreation}`, 14, 25);
+      if (mission.dateTerminaison) {
+        doc.text(`Date fin: ${mission.dateTerminaison}`, 14, 32);
+      }
+      
+      doc.text(`Budget: ${mission.budget.toFixed(2)}`, 14, mission.dateTerminaison ? 39 : 32);
+      doc.text(`Total dépensé: ${totalDepense.toFixed(2)}`, 14, mission.dateTerminaison ? 46 : 39);
+      doc.text(`Reste: ${reste.toFixed(2)}`, 14, mission.dateTerminaison ? 53 : 46);
+
+      let data = mission.commandes.map(c => [
+        c.id, c.date, c.montant, c.camion, c.sacs,
+        c.prixSac, c.dechargeur, c.barrage, c.total
+      ]);
+
+      doc.autoTable({
+        head: [["ID","Date","Montant","Camion","Sacs","Prix Sac","Déchargeur","Barrage","Total"]],
+        body: data,
+        startY: mission.dateTerminaison ? 60 : 53
+      });
+
+      doc.save(`mission_${mission.nom.replace(/\s+/g, '_')}.pdf`);
+    }
+
+    // Initialisation
+    majAffichageBudget();
+    afficherMissions();
+  </script>
+</body>
+</html>
